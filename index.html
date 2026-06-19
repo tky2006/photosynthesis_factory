@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Photosynthesis Factory</title>
+<style>
+  :root {
+    --green-deep: #0d1f14;
+    --green-dark: #1a3a25;
+    --green-mid: #2d8a4e;
+    --green-light: #4caf72;
+    --chloro: #3dba68;
+    --sunlight: #f5c518;
+    --sunlight-glow: #ffe066;
+    --water: #3b9fd6;
+    --water-glow: #7dd4f5;
+    --co2: #99aabb;
+    --co2-glow: #c8d8e8;
+    --glucose: #e8a02a;
+    --glucose-glow: #ffd060;
+    --oxygen: #a8e6cf;
+    --danger: #e05252;
+    --heart: #ff6b6b;
+    --ui-bg: rgba(10,25,15,0.92);
+    --ui-border: rgba(61,186,104,0.35);
+    --text-main: #e8f5ec;
+    --text-muted: #7aaa8a;
+    --shadow: 0 4px 24px rgba(0,0,0,0.7);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--green-deep);
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 0.45s ease;
+    overflow-y: auto;
+  }
+  .screen.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── BACKGROUND ── */
+  #bg-canvas {
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── START SCREEN ── */
+  #start-screen {
+    z-index: 10;
+    background: linear-gradient(160deg, #0d1f14 0%, #1a3a25 60%, #0a2a18 100%);
+  }
+
+  .logo-area {
+    text-align: center;
+    margin-bottom: 2rem;
+    animation: floatUp 1.2s ease both;
+  }
+  .factory-icon {
+    width: clamp(90px, 18vw, 130px);
+    height: clamp(90px, 18vw, 130px);
+    display: block;
+    margin: 0 auto 0.3rem;
+    filter: drop-shadow(0 0 22px rgba(61,186,104,0.75));
+    animation: pulse 2.5s ease-in-out infinite;
+    object-fit: contain;
+  }
+  .game-title {
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    font-weight: 900;
+    color: var(--chloro);
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 30px rgba(61,186,104,0.6), 0 2px 8px rgba(0,0,0,0.8);
+    line-height: 1.1;
+  }
+  .game-subtitle {
+    color: var(--text-muted);
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    margin-top: 0.4rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .equation-display {
+    background: rgba(61,186,104,0.08);
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    padding: 0.8rem 1.5rem;
+    margin-bottom: 2rem;
+    font-size: clamp(0.75rem, 2.2vw, 0.95rem);
+    color: var(--text-main);
+    text-align: center;
+    animation: floatUp 1.4s ease both;
+  }
+  .equation-display span { color: var(--chloro); font-weight: 700; }
+
+  .btn {
+    padding: 0.85rem 2.5rem;
+    font-size: clamp(1rem, 3vw, 1.2rem);
+    font-weight: 800;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    touch-action: manipulation;
+    min-height: 52px;
+    min-width: 140px;
+  }
+  .btn:active { transform: scale(0.95); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--chloro), #28a858);
+    color: #fff;
+    box-shadow: 0 6px 30px rgba(61,186,104,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 8px 40px rgba(61,186,104,0.7); transform: translateY(-2px); }
+
+  .btn-secondary {
+    background: rgba(61,186,104,0.12);
+    color: var(--chloro);
+    border: 1.5px solid rgba(61,186,104,0.5);
+  }
+  .btn-secondary:hover { background: rgba(61,186,104,0.2); }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #e05252, #b03a3a);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(224,82,82,0.4);
+  }
+
+  .start-btns {
+    display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    animation: floatUp 1.6s ease both;
+  }
+
+  /* ── INSTRUCTIONS SCREEN ── */
+  #instructions-screen {
+    z-index: 10;
+    background: linear-gradient(160deg, #0d1f14 0%, #1a3a25 100%);
+    padding: 1.5rem 1rem 2rem;
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+
+  .instructions-inner {
+    width: 100%; max-width: 760px;
+    display: flex; flex-direction: column; gap: 1.2rem;
+  }
+
+  .instr-title {
+    font-size: clamp(1.3rem, 4vw, 1.8rem);
+    font-weight: 900;
+    color: var(--chloro);
+    text-align: center;
+    padding: 1rem 0 0.5rem;
+  }
+
+  .instr-card {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
+  }
+
+  .instr-card h3 {
+    color: var(--chloro);
+    font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+    margin-bottom: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 800;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  .step-list { list-style: none; }
+  .step-list li {
+    display: flex; gap: 0.7rem; align-items: flex-start;
+    color: var(--text-main);
+    font-size: clamp(0.8rem, 2.2vw, 0.92rem);
+    padding: 0.35rem 0;
+    line-height: 1.5;
+  }
+  .step-num {
+    min-width: 24px; height: 24px;
+    background: var(--chloro);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .kbd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.6rem;
+  }
+  .kbd-item {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: clamp(0.75rem, 2vw, 0.85rem);
+    color: var(--text-main);
+  }
+  .key-badge {
+    background: rgba(61,186,104,0.2);
+    border: 1px solid rgba(61,186,104,0.5);
+    border-radius: 6px;
+    padding: 0.2rem 0.55rem;
+    font-weight: 800;
+    color: var(--chloro);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .material-icons-row {
+    display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem;
+  }
+  .mat-preview {
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+    font-size: clamp(0.7rem, 2vw, 0.8rem);
+    color: var(--text-muted);
+  }
+  .mat-icon-big {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+
+  .screenshot-placeholder {
+    border: 2px dashed rgba(61,186,104,0.4);
+    border-radius: 12px;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: clamp(0.8rem, 2.2vw, 0.9rem);
+    min-height: 140px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem;
+  }
+  .screenshot-placeholder .ph-icon { font-size: 2.5rem; opacity: 0.5; }
+  .screenshot-placeholder strong { color: var(--chloro); font-size: 1em; }
+
+  .tips-list { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+  .tips-list li {
+    color: var(--text-main);
+    font-size: clamp(0.78rem, 2.1vw, 0.88rem);
+    padding: 0.35rem 0;
+    padding-left: 1.4rem;
+    position: relative;
+    line-height: 1.5;
+  }
+  .tips-list li::before {
+    content: '💡';
+    position: absolute; left: 0; top: 0.3rem;
+    font-size: 0.8rem;
+  }
+
+  /* ── GAME SCREEN ── */
+  #game-screen {
+    z-index: 5;
+    background: transparent;
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  #game-canvas-area {
+    position: relative;
+    width: 100%; height: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(0.4rem, 1.5vw, 0.8rem);
+    gap: clamp(0.3rem, 1vw, 0.5rem);
+  }
+
+  /* HUD */
+  .hud {
+    display: flex; align-items: center;
+    gap: clamp(0.4rem, 1.5vw, 0.8rem);
+    flex-wrap: wrap;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    padding: 0.5rem 0.9rem;
+    position: relative;
+  }
+
+  .hud-item {
+    display: flex; align-items: center; gap: 0.35rem;
+    font-size: clamp(0.72rem, 1.9vw, 0.85rem);
+    color: var(--text-main);
+    white-space: nowrap;
+  }
+  .hud-label { color: var(--text-muted); font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.05em; }
+  .hud-value { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .hud-sep { width: 1px; height: 20px; background: rgba(255,255,255,0.1); }
+
+  .hearts-display { display: flex; gap: 3px; }
+  .heart-icon { font-size: clamp(0.9rem, 2.5vw, 1.1rem); transition: transform 0.3s; }
+  .heart-icon.lost { opacity: 0.2; filter: grayscale(1); transform: scale(0.8); }
+
+  .timer-display {
+    font-size: clamp(1rem, 3vw, 1.3rem);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: var(--sunlight);
+    text-shadow: 0 0 12px rgba(245,197,24,0.5);
+  }
+  .timer-display.urgent { color: var(--danger); animation: timerPulse 0.5s ease infinite alternate; }
+
+  .score-display { color: var(--glucose); font-weight: 800; font-size: clamp(0.85rem, 2.3vw, 1rem); }
+  .round-display { color: var(--text-muted); font-size: clamp(0.7rem, 1.8vw, 0.82rem); }
+
+  #mute-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: background 0.2s;
+    touch-action: manipulation;
+    min-width: 38px; min-height: 38px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #mute-btn:hover { background: rgba(255,255,255,0.14); }
+
+  /* MATERIALS TRAY */
+  .materials-tray {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    padding: 0.6rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: clamp(0.5rem, 2vw, 1.2rem);
+    flex-wrap: wrap;
+  }
+
+  .material-slot {
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+    position: relative;
+  }
+
+  .draggable-mat {
+    width: clamp(52px, 10vw, 68px);
+    height: clamp(52px, 10vw, 68px);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.4rem, 4vw, 1.8rem);
+    cursor: grab;
+    touch-action: none;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    position: relative;
+    z-index: 50;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .draggable-mat:active, .draggable-mat.dragging { cursor: grabbing; transform: scale(1.12); }
+  .draggable-mat.disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.8); }
+
+  .mat-sunlight { background: linear-gradient(135deg, #7a5a00, #c49000); box-shadow: 0 4px 14px rgba(245,197,24,0.35); }
+  .mat-water { background: linear-gradient(135deg, #1a5a80, #2880b0); box-shadow: 0 4px 14px rgba(59,159,214,0.35); }
+  .mat-co2 { background: linear-gradient(135deg, #4a5560, #6a7a88); box-shadow: 0 4px 14px rgba(153,170,187,0.25); }
+  .mat-decoy { background: linear-gradient(135deg, #4a3060, #6a4a88); box-shadow: 0 4px 14px rgba(180,120,220,0.25); opacity: 0.9; }
+
+  .mat-label {
+    font-size: clamp(0.6rem, 1.6vw, 0.7rem);
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .mat-count {
+    position: absolute;
+    top: -6px; right: -6px;
+    background: rgba(10,25,15,0.9);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-main);
+    padding: 0 5px;
+    min-width: 20px;
+    text-align: center;
+    line-height: 18px;
+    height: 18px;
+  }
+
+  .kbd-hints {
+    display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto;
+    align-items: center;
+  }
+  .kbd-hint-item {
+    display: flex; align-items: center; gap: 0.25rem;
+    font-size: clamp(0.6rem, 1.5vw, 0.7rem);
+    color: var(--text-muted);
+  }
+  .key-sm {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  /* FACTORY AREA */
+  .factory-area {
+    flex: 1;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Conveyor belts */
+  .conveyor-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 28px;
+    background: repeating-linear-gradient(90deg, #2a3830 0px, #2a3830 24px, #1e2e25 24px, #1e2e25 32px);
+    border-bottom: 2px solid rgba(61,186,104,0.3);
+    animation: conveyorMove 1.5s linear infinite;
+    overflow: hidden;
+  }
+  .conveyor-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 28px;
+    background: repeating-linear-gradient(90deg, #2a3830 0px, #2a3830 24px, #1e2e25 24px, #1e2e25 32px);
+    border-top: 2px solid rgba(61,186,104,0.3);
+    animation: conveyorMove 1.5s linear infinite reverse;
+  }
+
+  /* Factory background gears */
+  .gear-bg {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.06;
+    font-size: 5rem;
+  }
+  .gear-bg.g1 { top: 10px; left: 10px; animation: gearSpin 8s linear infinite; }
+  .gear-bg.g2 { bottom: 40px; right: 15px; animation: gearSpin 12s linear infinite reverse; font-size: 3.5rem; }
+  .gear-bg.g3 { top: 50%; left: 5%; transform: translateY(-50%); animation: gearSpin 10s linear infinite; font-size: 2.5rem; }
+
+  /* Chloroplast */
+  #chloroplast {
+    position: relative;
+    width: clamp(130px, 28vw, 180px);
+    height: clamp(110px, 22vw, 150px);
+    background: radial-gradient(ellipse at 40% 40%, #3dba68 0%, #1a6b38 60%, #0d3d1e 100%);
+    border-radius: 60% 40% 55% 45% / 50% 45% 55% 50%;
+    border: 2.5px solid rgba(61,186,104,0.6);
+    box-shadow: 0 0 30px rgba(61,186,104,0.3), inset 0 2px 8px rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    z-index: 10;
+    transition: box-shadow 0.3s;
+    cursor: default;
+  }
+  #chloroplast.drop-hover {
+    box-shadow: 0 0 50px rgba(61,186,104,0.7), 0 0 20px rgba(61,186,104,0.5), inset 0 2px 8px rgba(255,255,255,0.2);
+    border-color: rgba(100,230,140,0.9);
+  }
+  #chloroplast.processing { animation: chloroProcess 0.6s ease; }
+
+  .chloro-label {
+    font-size: clamp(0.55rem, 1.4vw, 0.65rem);
+    color: rgba(255,255,255,0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .chloro-icon { font-size: clamp(1.6rem, 4vw, 2.2rem); }
+  .drop-hint {
+    font-size: clamp(0.5rem, 1.3vw, 0.58rem);
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  /* Production bar */
+  .production-section {
+    position: absolute;
+    bottom: 36px; left: 50%;
+    transform: translateX(-50%);
+    width: clamp(160px, 40vw, 260px);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    z-index: 20;
+  }
+  .prod-label {
+    font-size: clamp(0.6rem, 1.5vw, 0.68rem);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .prod-bar-outer {
+    width: 100%;
+    height: clamp(10px, 2.5vw, 14px);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(61,186,104,0.3);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .prod-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green-mid), var(--chloro), var(--sunlight-glow));
+    border-radius: 20px;
+    width: 0%;
+    transition: width 0.25s ease;
+    box-shadow: 0 0 10px rgba(61,186,104,0.5);
+  }
+
+  /* Capacity meter */
+  .capacity-section {
+    position: absolute;
+    top: 36px; left: 50%;
+    transform: translateX(-50%);
+    width: clamp(140px, 35vw, 220px);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    z-index: 20;
+  }
+  .cap-label { font-size: clamp(0.58rem, 1.4vw, 0.65rem); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+  .cap-bar-outer {
+    width: 100%; height: clamp(8px, 2vw, 11px);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .cap-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #3dba68, #f5c518, #e05252);
+    border-radius: 20px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* Factory counters left side */
+  .factory-counters {
+    position: absolute;
+    left: clamp(6px, 2vw, 14px);
+    top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 0.35rem;
+    z-index: 20;
+  }
+  .fc-item {
+    display: flex; align-items: center; gap: 0.3rem;
+    font-size: clamp(0.65rem, 1.7vw, 0.75rem);
+    background: rgba(0,0,0,0.5);
+    border-radius: 8px;
+    padding: 0.25rem 0.5rem;
+    color: var(--text-main);
+    white-space: nowrap;
+  }
+  .fc-icon { font-size: 0.9rem; }
+  .fc-val { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
+
+  /* Factory output right side */
+  .factory-output {
+    position: absolute;
+    right: clamp(6px, 2vw, 14px);
+    top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 0.35rem;
+    z-index: 20;
+    align-items: flex-end;
+  }
+  .out-item {
+    display: flex; align-items: center; gap: 0.3rem;
+    font-size: clamp(0.65rem, 1.7vw, 0.75rem);
+    background: rgba(0,0,0,0.5);
+    border-radius: 8px;
+    padding: 0.25rem 0.5rem;
+    color: var(--text-main);
+    white-space: nowrap;
+  }
+
+  /* Target display */
+  .target-display {
+    position: absolute;
+    top: 36px;
+    right: clamp(6px, 2vw, 14px);
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(232,160,42,0.4);
+    border-radius: 10px;
+    padding: 0.4rem 0.7rem;
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  }
+  .tgt-label { font-size: clamp(0.55rem, 1.3vw, 0.62rem); color: var(--text-muted); text-transform: uppercase; }
+  .tgt-value {
+    font-size: clamp(1rem, 2.8vw, 1.3rem);
+    font-weight: 900;
+    color: var(--glucose);
+    text-shadow: 0 0 10px rgba(232,160,42,0.5);
+    font-variant-numeric: tabular-nums;
+  }
+  .tgt-progress { font-size: clamp(0.65rem, 1.5vw, 0.72rem); color: var(--text-muted); }
+
+  /* FLOATING NOTIFICATION */
+  .round-notif {
+    position: fixed;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(61,186,104,0.92);
+    color: #fff;
+    font-size: clamp(0.85rem, 2.3vw, 1rem);
+    font-weight: 800;
+    padding: 0.5rem 1.5rem;
+    border-radius: 30px;
+    z-index: 100;
+    pointer-events: none;
+    animation: notifFloat 2s ease forwards;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  /* PARTICLES */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 200;
+    font-size: 1.2rem;
+    animation: particleFly 0.9s ease-out forwards;
+  }
+
+  /* GHOST DRAGGING ELEMENT */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+    width: 60px; height: 60px;
+    border-radius: 14px;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.15);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+  }
+
+  /* END SCREEN */
+  #end-screen {
+    z-index: 10;
+    background: linear-gradient(160deg, #0d1f14 0%, #1a3a25 100%);
+    text-align: center;
+    gap: 1.5rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .end-icon { font-size: clamp(3rem, 10vw, 4.5rem); animation: pulse 2s ease-in-out infinite; }
+  .end-title { font-size: clamp(1.5rem, 4.5vw, 2.2rem); font-weight: 900; color: var(--chloro); }
+  .end-subtitle { color: var(--text-muted); font-size: clamp(0.85rem, 2.3vw, 1rem); }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.8rem;
+    max-width: 480px;
+    width: 100%;
+  }
+  .stat-box {
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  }
+  .stat-val { font-size: clamp(1.6rem, 4.5vw, 2rem); font-weight: 900; color: var(--chloro); }
+  .stat-label { font-size: clamp(0.68rem, 1.8vw, 0.78rem); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes floatUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  @keyframes timerPulse {
+    from { opacity: 1; } to { opacity: 0.5; }
+  }
+  @keyframes gearSpin {
+    from { transform: rotate(0deg) translateY(-50%); }
+    to { transform: rotate(360deg) translateY(-50%); }
+  }
+  @keyframes gearSpinSimple {
+    from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+  }
+  .gear-bg.g1 { animation: gearSpinSimple 8s linear infinite; }
+  .gear-bg.g2 { animation: gearSpinSimple 12s linear infinite reverse; }
+  .gear-bg.g3 { animation: gearSpinSimple 10s linear infinite; }
+
+  @keyframes conveyorMove {
+    from { background-position: 0 0; } to { background-position: 32px 0; }
+  }
+  @keyframes chloroProcess {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.08); box-shadow: 0 0 60px rgba(61,186,104,0.9); }
+    100% { transform: scale(1); }
+  }
+  @keyframes notifFloat {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    70% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-15px); }
+  }
+  @keyframes particleFly {
+    0% { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--px), var(--py)) scale(0.3); }
+  }
+  @keyframes heartLost {
+    0% { transform: scale(1); }
+    30% { transform: scale(0.6) rotate(-15deg); opacity: 0.5; }
+    60% { transform: scale(0.8); opacity: 0.3; }
+    100% { transform: scale(0.8); opacity: 0.2; }
+  }
+  @keyframes glucoseProduced {
+    0% { transform: scale(0) translateY(20px); opacity: 0; }
+    50% { transform: scale(1.3) translateY(-5px); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .mat-img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+  }
+
+  .chloro-leaf-img {
+    width: clamp(52px, 12vw, 72px);
+    height: auto;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  /* Mobile adaptations */
+  @media (max-width: 480px) {
+    .kbd-hints { display: none; }
+    .instr-card { padding: 0.9rem 1rem; }
+    .materials-tray { gap: 0.5rem; padding: 0.5rem 0.6rem; }
+  }
+  @media (max-width: 360px) {
+    .materials-tray { gap: 0.3rem; }
+    .draggable-mat { width: 48px; height: 48px; font-size: 1.3rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div id="drag-ghost"></div>
+
+<!-- ══ START SCREEN ══ -->
+<div class="screen" id="start-screen">
+  <div class="logo-area">
+    <img class="factory-icon" src="assets/leaf.png" alt="Leaf" />
+    <div class="game-title">Photosynthesis<br>Factory</div>
+    <div class="game-subtitle">Biology Game · Secondary School</div>
+  </div>
+  <div class="equation-display">
+    <span>6CO₂ + 6H₂O + Light</span> → <span>C₆H₁₂O₆ + 6O₂</span>
+  </div>
+  <div class="start-btns">
+    <button class="btn btn-primary" onclick="startGame()">▶ Play Now</button>
+    <button class="btn btn-secondary" onclick="showInstructions()">📖 How to Play</button>
+  </div>
+</div>
+
+<!-- ══ INSTRUCTIONS SCREEN ══ -->
+<div class="screen hidden" id="instructions-screen">
+  <div class="instructions-inner">
+    <div class="instr-title">📖 How to Play</div>
+
+    <div class="instr-card">
+      <h3>🎯 Step-by-Step Guide</h3>
+      <ol class="step-list">
+        <li><span class="step-num">1</span><span>Look at the <strong style="color:var(--glucose)">Target Glucose</strong> amount at the top-right of the factory.</span></li>
+        <li><span class="step-num">2</span><span>Drag <strong style="color:var(--sunlight)">SUNLIGHT ☀️</strong>, <strong style="color:var(--water)">WATER 💧</strong>, and <strong style="color:var(--co2)">CO₂ 🧪</strong> icons into the glowing chloroplast.</span></li>
+        <li><span class="step-num">3</span><span>The factory needs <strong>6 CO₂ + 6 H₂O + 1 Sunlight</strong> to produce <strong>1 Glucose + 6 O₂</strong>.</span></li>
+        <li><span class="step-num">4</span><span>Watch the <strong style="color:var(--chloro)">Production Bar</strong> – it fills as you add the correct materials!</span></li>
+        <li><span class="step-num">5</span><span>When the bar reaches full, the factory automatically produces Glucose 🍬.</span></li>
+        <li><span class="step-num">6</span><span>Keep producing until you hit the target before the <strong style="color:var(--sunlight)">⏱ 20-second timer</strong> runs out!</span></li>
+      </ol>
+    </div>
+
+    <div class="instr-card">
+      <h3>⌨️ Keyboard Controls</h3>
+      <div class="kbd-grid">
+        <div class="kbd-item"><span class="key-badge">1</span> Drop Sunlight ☀️</div>
+        <div class="kbd-item"><span class="key-badge">2</span> Drop Water 💧</div>
+        <div class="kbd-item"><span class="key-badge">3</span> Drop CO₂ 🧪</div>
+        <div class="kbd-item"><span class="key-badge">4</span> Process Cycle</div>
+        <div class="kbd-item"><span class="key-badge">M</span> Mute / Unmute</div>
+      </div>
+    </div>
+
+    <div class="instr-card">
+      <h3>👆 Touch Controls</h3>
+      <p style="color:var(--text-main);font-size:clamp(0.78rem,2vw,0.88rem);margin-bottom:0.7rem;">Drag the material icons directly into the glowing chloroplast drop zone:</p>
+      <div class="material-icons-row">
+        <div class="mat-preview">
+          <div class="mat-icon-big mat-sunlight" style="padding:6px;">
+            <img src="assets/sun.png" alt="Sunlight" style="width:100%;height:100%;object-fit:contain;display:block;" />
+          </div>
+          <span>Sunlight</span>
+        </div>
+        <div class="mat-preview">
+          <div class="mat-icon-big mat-water">💧</div>
+          <span>Water</span>
+        </div>
+        <div class="mat-preview">
+          <div class="mat-icon-big mat-co2">🧪</div>
+          <span>CO₂</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="instr-card">
+      <h3>📸 Photosynthesis Diagram</h3>
+      <div class="screenshot-placeholder" style="padding:0;border:2px solid rgba(61,186,104,0.45);overflow:hidden;min-height:unset;">
+        <img src="assets/Photosynthesis.png" alt="Photosynthesis diagram showing 6CO₂ + 6H₂O + Light → C₆H₁₂O₆ + 6O₂"
+          style="width:100%;height:auto;display:block;border-radius:10px;" />
+      </div>
+      <p style="color:var(--text-muted);font-size:clamp(0.68rem,1.7vw,0.76rem);margin-top:0.5rem;text-align:center;">
+        The full photosynthesis cycle — light-dependent &amp; light-independent reactions inside the chloroplast.
+      </p>
+    </div>
+
+    <div class="instr-card">
+      <h3>💡 Game Tips</h3>
+      <ul class="tips-list">
+        <li>Remember the formula: <strong>6CO₂ + 6H₂O + light → C₆H₁₂O₆ + 6O₂</strong></li>
+        <li>Don't overload the factory – it can only hold so many materials!</li>
+        <li>Sunlight is the energy source – you always need it to start production.</li>
+        <li>Watch the resource counters – you have limited materials per round!</li>
+        <li>In later rounds, avoid <strong style="color:#b890e8">DECOY</strong> materials like Nitrogen – they waste capacity!</li>
+      </ul>
+    </div>
+
+    <div style="display:flex;gap:0.8rem;justify-content:center;padding-bottom:1rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="startGame()">▶ Start Playing</button>
+      <button class="btn btn-secondary" onclick="showScreen('start-screen')">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GAME SCREEN ══ -->
+<div class="screen hidden" id="game-screen">
+  <div id="game-canvas-area">
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">Lives</span>
+        <div class="hearts-display" id="hearts-display"></div>
+      </div>
+      <div class="hud-sep"></div>
+      <div class="hud-item">
+        <span class="hud-label">Score</span>
+        <span class="hud-value score-display" id="score-display">0</span>
+      </div>
+      <div class="hud-sep"></div>
+      <div class="hud-item">
+        <span class="hud-label">Round</span>
+        <span class="hud-value round-display" id="round-display">1/10</span>
+      </div>
+      <div class="hud-sep"></div>
+      <div class="hud-item">
+        <span class="hud-label">Time</span>
+        <span class="timer-display" id="timer-display">20</span>
+      </div>
+      <button id="mute-btn" onclick="toggleMute()" title="Mute/Unmute (M)">🔊</button>
+    </div>
+
+    <!-- Materials Tray -->
+    <div class="materials-tray">
+      <div class="material-slot">
+        <div class="draggable-mat mat-sunlight" id="mat-sun" data-type="sun"
+          draggable="true" onmousedown="startDragMouse(event,'sun')"
+          ontouchstart="startDragTouch(event,'sun')" style="padding:6px;">
+          <img src="assets/sun.png" alt="Sunlight" class="mat-img" />
+          <span class="mat-count" id="count-sun">∞</span>
+        </div>
+        <span class="mat-label">Sunlight</span>
+      </div>
+      <div class="material-slot">
+        <div class="draggable-mat mat-water" id="mat-water" data-type="water"
+          draggable="true" onmousedown="startDragMouse(event,'water')"
+          ontouchstart="startDragTouch(event,'water')">💧
+          <span class="mat-count" id="count-water">∞</span>
+        </div>
+        <span class="mat-label">Water</span>
+      </div>
+      <div class="material-slot">
+        <div class="draggable-mat mat-co2" id="mat-co2" data-type="co2"
+          draggable="true" onmousedown="startDragMouse(event,'co2')"
+          ontouchstart="startDragTouch(event,'co2')">🧪
+          <span class="mat-count" id="count-co2">∞</span>
+        </div>
+        <span class="mat-label">CO₂</span>
+      </div>
+      <div class="material-slot" id="decoy-slot" style="display:none">
+        <div class="draggable-mat mat-decoy" id="mat-decoy" data-type="decoy"
+          onmousedown="startDragMouse(event,'decoy')"
+          ontouchstart="startDragTouch(event,'decoy')">⚗️
+          <span class="mat-count" id="count-decoy">∞</span>
+        </div>
+        <span class="mat-label" style="color:#b890e8">Nitrogen</span>
+      </div>
+
+      <div class="kbd-hints">
+        <div class="kbd-hint-item"><span class="key-sm">1</span><img src="assets/sun.png" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;" alt="sun"/></div>
+        <div class="kbd-hint-item"><span class="key-sm">2</span>💧</div>
+        <div class="kbd-hint-item"><span class="key-sm">3</span>🧪</div>
+        <div class="kbd-hint-item"><span class="key-sm">4</span>⚡</div>
+      </div>
+    </div>
+
+    <!-- Factory -->
+    <div class="factory-area" id="factory-area">
+      <div class="conveyor-top"></div>
+      <div class="conveyor-bottom"></div>
+      <span class="gear-bg g1">⚙️</span>
+      <span class="gear-bg g2">⚙️</span>
+      <span class="gear-bg g3">⚙️</span>
+
+      <!-- Capacity -->
+      <div class="capacity-section">
+        <span class="cap-label">Factory Capacity</span>
+        <div class="cap-bar-outer"><div class="cap-bar-inner" id="cap-bar"></div></div>
+      </div>
+
+      <!-- Chloroplast drop zone -->
+      <div id="chloroplast"
+        ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+        <img src="assets/leaf.png" alt="Chloroplast Leaf" class="chloro-leaf-img" />
+        <span class="chloro-label">Chloroplast</span>
+        <span class="drop-hint">Drop zone</span>
+      </div>
+
+      <!-- Factory counters - left -->
+      <div class="factory-counters">
+        <div class="fc-item"><img src="assets/sun.png" class="fc-icon" style="width:18px;height:18px;object-fit:contain;" alt="sun"/><span id="fc-sun">0</span>/1</div>
+        <div class="fc-item"><span class="fc-icon">💧</span><span id="fc-water">0</span>/6</div>
+        <div class="fc-item"><span class="fc-icon">🧪</span><span id="fc-co2">0</span>/6</div>
+      </div>
+
+      <!-- Output - right -->
+      <div class="factory-output">
+        <div class="out-item">🍬<span id="out-glucose">0</span></div>
+        <div class="out-item">💨<span id="out-oxygen">0</span> O₂</div>
+      </div>
+
+      <!-- Target -->
+      <div class="target-display">
+        <span class="tgt-label">Target</span>
+        <span class="tgt-value" id="target-value">1 🍬</span>
+        <span class="tgt-progress" id="target-progress">0 / 1</span>
+      </div>
+
+      <!-- Production bar -->
+      <div class="production-section">
+        <span class="prod-label">Production Progress</span>
+        <div class="prod-bar-outer"><div class="prod-bar-inner" id="prod-bar"></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ END SCREEN ══ -->
+<div class="screen hidden" id="end-screen">
+  <div class="end-icon" id="end-icon">🏆</div>
+  <div class="end-title" id="end-title">Round Complete!</div>
+  <div class="end-subtitle" id="end-subtitle">You powered the photosynthesis factory!</div>
+  <div class="stats-grid">
+    <div class="stat-box"><span class="stat-val" id="stat-score">0</span><span class="stat-label">Final Score</span></div>
+    <div class="stat-box"><span class="stat-val" id="stat-rounds">0</span><span class="stat-label">Rounds Done</span></div>
+    <div class="stat-box"><span class="stat-val" id="stat-glucose">0</span><span class="stat-label">Glucose Made</span></div>
+  </div>
+  <div style="display:flex;gap:0.8rem;flex-wrap:wrap;justify-content:center;">
+    <button class="btn btn-primary" onclick="startGame()">🔄 Play Again</button>
+    <button class="btn btn-secondary" onclick="showScreen('start-screen')">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   AUDIO ENGINE (Web Audio API)
+═══════════════════════════════════════════ */
+let audioCtx = null;
+let musicGain = null;
+let sfxGain = null;
+let musicNodes = [];
+let muted = false;
+
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 1.0;
+    musicGain.connect(audioCtx.destination);
+    sfxGain = audioCtx.createGain();
+    sfxGain.gain.value = 1.50;
+    sfxGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, type, dur, gainVal, dest, delay=0, filterFreq=null) {
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+  g.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+  g.gain.linearRampToValueAtTime(gainVal, audioCtx.currentTime + delay + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + dur);
+  if (filterFreq) {
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = filterFreq;
+    osc.connect(filt); filt.connect(g);
+  } else {
+    osc.connect(g);
+  }
+  g.connect(dest);
+  osc.start(audioCtx.currentTime + delay);
+  osc.stop(audioCtx.currentTime + delay + dur + 0.05);
+  return osc;
+}
+
+// SFX
+function sfxSunlight() {
+  if (muted || !audioCtx) return;
+  [880,1100,1320,1760].forEach((f,i) => playTone(f,'sine',0.18,0.4,sfxGain,i*0.04,3000));
+}
+function sfxWater() {
+  if (muted || !audioCtx) return;
+  [440,330,260].forEach((f,i) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = f;
+    filter.Q.value = 2;
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * 1.5, audioCtx.currentTime + i*0.06);
+    o.frequency.exponentialRampToValueAtTime(f * 0.7, audioCtx.currentTime + i*0.06 + 0.25);
+    g.gain.setValueAtTime(0, audioCtx.currentTime + i*0.06);
+    g.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + i*0.06 + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i*0.06 + 0.28);
+    o.connect(filter); filter.connect(g); g.connect(sfxGain);
+    o.start(audioCtx.currentTime + i*0.06);
+    o.stop(audioCtx.currentTime + i*0.06 + 0.3);
+  });
+}
+function sfxCO2() {
+  if (muted || !audioCtx) return;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * Math.exp(-i / (data.length*0.3));
+  const src = audioCtx.createBufferSource();
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 0.8;
+  const g = audioCtx.createGain(); g.gain.value = 0.35;
+  src.buffer = buf; src.connect(filter); filter.connect(g); g.connect(sfxGain);
+  src.start();
+  playTone(200,'sine',0.12,0.15,sfxGain);
+}
+function sfxSuccess() {
+  if (muted || !audioCtx) return;
+  [523,659,784,1047].forEach((f,i) => playTone(f,'sine',0.22,0.35,sfxGain,i*0.07));
+}
+function sfxGlucose() {
+  if (muted || !audioCtx) return;
+  [1047,1319,1568].forEach((f,i) => playTone(f,'triangle',0.25,0.4,sfxGain,i*0.06));
+}
+function sfxLifeLost() {
+  if (muted || !audioCtx) return;
+  [440,330,220,165].forEach((f,i) => playTone(f,'sawtooth',0.2,0.25,sfxGain,i*0.1,600));
+}
+function sfxFail() {
+  if (muted || !audioCtx) return;
+  [300,240,180].forEach((f,i) => playTone(f,'sine',0.3,0.3,sfxGain,i*0.12,500));
+}
+function sfxRoundTransition() {
+  if (muted || !audioCtx) return;
+  playTone(660,'triangle',0.18,0.3,sfxGain);
+  playTone(880,'triangle',0.18,0.25,sfxGain,0.1);
+}
+function sfxGameOver() {
+  if (muted || !audioCtx) return;
+  [440,370,311,261].forEach((f,i) => playTone(f,'sawtooth',0.35,0.3,sfxGain,i*0.18,800));
+}
+function sfxVictory() {
+  if (muted || !audioCtx) return;
+  const melody = [523,659,784,1047,784,880,1047,1319];
+  melody.forEach((f,i) => playTone(f,'triangle',0.28,0.4,sfxGain,i*0.11));
+}
+function sfxDecoy() {
+  if (muted || !audioCtx) return;
+  [220,440,220].forEach((f,i) => playTone(f,'sawtooth',0.12,0.2,sfxGain,i*0.04,400));
+}
+
+// Background Music
+let musicInterval = null;
+let musicPhase = 0;
+let musicBeatCount = 0;
+
+// Full C major scale across 2 octaves
+const musicScale = [
+  261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88,
+  523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77
+];
+
+// Cheerful upbeat melody (longer = less repetitive)
+const musicMelody = [
+  0,2,4,7,6,4,2,4, 5,4,2,0,2,4,5,7,
+  9,7,5,4,5,7,9,7, 6,5,4,2,0,2,4,2
+];
+
+// Chord progressions: C, F, Am, G
+const musicChords = [
+  [0,2,4], [3,5,0], [5,0,2], [4,6,1],
+  [0,2,4], [3,5,0], [4,6,1], [0,4,7]
+];
+
+// Bass line root notes (Hz)
+const bassLine = [
+  130.81, 130.81, 174.61, 164.81,
+  130.81, 174.61, 196.00, 130.81
+];
+
+function startMusic() {
+  if (!audioCtx) return;
+  stopMusic();
+  playMusicBeat();
+  musicInterval = setInterval(() => {
+    if (!muted) playMusicBeat();
+  }, 280); // slightly faster = more energetic
+}
+
+function playMusicBeat() {
+  if (muted || !audioCtx) return;
+  const t = audioCtx.currentTime;
+
+  // --- Melody (sine, bright and clear) ---
+  const note = musicScale[musicMelody[musicPhase % musicMelody.length]];
+  const melOsc = audioCtx.createOscillator();
+  const melGain = audioCtx.createGain();
+  const melFilter = audioCtx.createBiquadFilter();
+  melFilter.type = 'lowpass';
+  melFilter.frequency.value = 3500;
+  melOsc.type = 'sine';
+  melOsc.frequency.setValueAtTime(note, t);
+  melGain.gain.setValueAtTime(0, t);
+  melGain.gain.linearRampToValueAtTime(0.45, t + 0.02);//volume
+  melGain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+  melOsc.connect(melFilter); melFilter.connect(melGain); melGain.connect(musicGain);
+  melOsc.start(t); melOsc.stop(t + 0.3);
+
+  // --- Harmony note (triangle, softer octave below) ---
+  const harmOsc = audioCtx.createOscillator();
+  const harmGain = audioCtx.createGain();
+  harmOsc.type = 'triangle';
+  harmOsc.frequency.setValueAtTime(note * 0.5, t);
+  harmGain.gain.setValueAtTime(0, t);
+  harmGain.gain.linearRampToValueAtTime(0.20, t + 0.03);//volume
+  harmGain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+  harmOsc.connect(harmGain); harmGain.connect(musicGain);
+  harmOsc.start(t); harmOsc.stop(t + 0.35);
+
+  // --- Chords every 2 beats (triangle, warm pad feel) ---
+  if (musicBeatCount % 2 === 0) {
+    const chord = musicChords[Math.floor(musicBeatCount / 2) % musicChords.length];
+    chord.forEach((idx, i) => {
+      const f = musicScale[idx % musicScale.length];
+      const co = audioCtx.createOscillator();
+      const cg = audioCtx.createGain();
+      co.type = 'triangle';
+      co.frequency.setValueAtTime(f, t);
+      cg.gain.setValueAtTime(0, t);
+      cg.gain.linearRampToValueAtTime(0.14, t + 0.04 + i * 0.01);//volume
+      cg.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      co.connect(cg); cg.connect(musicGain);
+      co.start(t); co.stop(t + 0.6);
+    });
+  }
+
+  // --- Bass every 4 beats (sine, punchy) ---
+  if (musicBeatCount % 4 === 0) {
+    const bassFreq = bassLine[Math.floor(musicBeatCount / 4) % bassLine.length];
+    const bo = audioCtx.createOscillator();
+    const bg = audioCtx.createGain();
+    const bf = audioCtx.createBiquadFilter();
+    bf.type = 'lowpass'; bf.frequency.value = 400;
+    bo.type = 'sine';
+    bo.frequency.setValueAtTime(bassFreq, t);
+    bg.gain.setValueAtTime(0, t);
+    bg.gain.linearRampToValueAtTime(0.35, t + 0.02);//volume
+    bg.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    bo.connect(bf); bf.connect(bg); bg.connect(musicGain);
+    bo.start(t); bo.stop(t + 0.4);
+  }
+
+  // --- Hi-hat tick every beat (noise burst, very subtle) ---
+  if (musicBeatCount % 2 === 0) {
+    const bufSize = audioCtx.sampleRate * 0.04;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.15));
+    const ns = audioCtx.createBufferSource();
+    const nf = audioCtx.createBiquadFilter();
+    const ng = audioCtx.createGain();
+    nf.type = 'highpass'; nf.frequency.value = 6000;
+    ng.gain.value = 0.10;//volume
+    ns.buffer = buf;
+    ns.connect(nf); nf.connect(ng); ng.connect(musicGain);
+    ns.start(t);
+  }
+
+  musicPhase++;
+  musicBeatCount++;
+}
+
+function stopMusic() {
+  if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
+}
+
+function toggleMute() {
+  ensureAudio();
+  muted = !muted;
+  document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  if (!muted && !musicInterval) startMusic();
+  else if (muted) stopMusic();
+}
+
+/* ═══════════════════════════════════════════
+   BACKGROUND CANVAS
+═══════════════════════════════════════════ */
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+let bgParticles = [];
+
+function initBgCanvas() {
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+  bgParticles = Array.from({length: 30}, () => ({
+    x: Math.random() * bgCanvas.width,
+    y: Math.random() * bgCanvas.height,
+    r: Math.random() * 2 + 0.5,
+    dx: (Math.random() - 0.5) * 0.3,
+    dy: -Math.random() * 0.4 - 0.1,
+    opacity: Math.random() * 0.4 + 0.1
+  }));
+}
+
+function animateBg() {
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  const grad = bgCtx.createLinearGradient(0, 0, bgCanvas.width, bgCanvas.height);
+  grad.addColorStop(0, '#0d1f14');
+  grad.addColorStop(0.5, '#1a3a25');
+  grad.addColorStop(1, '#0a2a18');
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+  bgParticles.forEach(p => {
+    bgCtx.beginPath();
+    bgCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    bgCtx.fillStyle = `rgba(61,186,104,${p.opacity})`;
+    bgCtx.fill();
+    p.x += p.dx; p.y += p.dy;
+    if (p.y < -5) { p.y = bgCanvas.height + 5; p.x = Math.random() * bgCanvas.width; }
+    if (p.x < 0) p.x = bgCanvas.width;
+    if (p.x > bgCanvas.width) p.x = 0;
+  });
+  requestAnimationFrame(animateBg);
+}
+
+window.addEventListener('resize', () => {
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+});
+initBgCanvas();
+animateBg();
+
+/* ═══════════════════════════════════════════
+   SCREEN MANAGEMENT
+═══════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+function showInstructions() {
+  showScreen('instructions-screen');
+}
+
+/* ═══════════════════════════════════════════
+   GAME STATE
+═══════════════════════════════════════════ */
+const ROUNDS = 10;
+const ROUND_TIME = 30;
+const REQUIRED = { sun: 1, water: 6, co2: 6 };
+
+let gs = {}; // game state
+
+const roundConfig = [
+  { target:1, capacity:10, decoy:false, time:30, matCap:6  },  // Round 1
+  { target:2, capacity:10, decoy:false, time:32, matCap:7  },  // Round 2
+  { target:3, capacity:8,  decoy:false, time:34, matCap:8  },  // Round 3
+  { target:4, capacity:8,  decoy:true,  time:36, matCap:9  },  // Round 4
+  { target:5, capacity:6,  decoy:true,  time:38, matCap:10 },  // Round 5
+  { target:6, capacity:6,  decoy:true,  time:40, matCap:12 },  // Round 6
+  { target:7, capacity:5,  decoy:true,  time:42, matCap:14 },  // Round 7
+  { target:8, capacity:5,  decoy:true,  time:44, matCap:16 },  // Round 8
+  { target:9, capacity:4,  decoy:true,  time:46, matCap:18 },  // Round 9
+  { target:10,capacity:4,  decoy:true,  time:50, matCap:20 },  // Round 10
+];
+
+function startGame() {
+  ensureAudio();
+  gs = {
+    lives: 3,
+    score: 0,
+    round: 1,
+    timeLeft: ROUND_TIME,
+    glucoseProduced: 0,
+    totalGlucose: 0,
+    factory: { sun:0, water:0, co2:0, decoy:0 },
+    production: 0, // 0–1 progress
+    running: false,
+    timerInterval: null,
+    availMats: { sun:15, water:15, co2:15, decoy:8 },
+  };
+  showScreen('game-screen');
+  if (!muted) startMusic();
+  initRound();
+}
+
+function initRound() {
+  const cfg = roundConfig[gs.round - 1];
+  gs.glucoseProduced = 0;
+  gs.factory = { sun:0, water:0, co2:0, decoy:0 };
+  gs.production = 0;
+  gs.timeLeft = cfg.time;          // ← each round gets MORE time
+  gs.capacity = cfg.capacity;      // ← but LESS factory capacity
+  gs.target = cfg.target;          // ← and MORE glucose required
+  gs.decoyActive = cfg.decoy;
+  gs.availMats = {
+    sun:   cfg.matCap * gs.target, // ← material pool scales with target
+    water: cfg.matCap * gs.target,
+    co2:   cfg.matCap * gs.target,
+    decoy: cfg.decoy ? Math.floor(gs.round * 1.2) : 0  // ← more decoys each round
+  };
+  gs.running = true;
+
+  document.getElementById('decoy-slot').style.display = cfg.decoy ? '' : 'none';
+  updateUI();
+  clearInterval(gs.timerInterval);
+  gs.timerInterval = setInterval(gameTick, 1000);
+}
+
+function gameTick() {
+  if (!gs.running) return;
+  gs.timeLeft--;
+  if (gs.timeLeft <= 0) {
+    gs.timeLeft = 0;
+    updateUI();
+    roundFailed();
+  } else {
+    updateUI();
+  }
+}
+
+function roundFailed() {
+  gs.running = false;
+  clearInterval(gs.timerInterval);
+  sfxFail();
+  gs.lives--;
+  updateHearts();
+  showNotif(`⏱ Time's up! -1 Life`);
+  if (gs.lives <= 0) {
+    setTimeout(gameOver, 900);
+  } else {
+    setTimeout(() => {
+      if (gs.round < ROUNDS) {
+        gs.round++;
+        sfxRoundTransition();
+        showNotif(`Round ${gs.round} →`);
+        setTimeout(initRound, 500);
+      } else {
+        victory();
+      }
+    }, 900);
+  }
+}
+
+function updateUI() {
+  document.getElementById('score-display').textContent = gs.score;
+  document.getElementById('round-display').textContent = `${gs.round}/${ROUNDS}`;
+  const timerEl = document.getElementById('timer-display');
+  timerEl.textContent = gs.timeLeft;
+  timerEl.className = 'timer-display' + (gs.timeLeft <= 5 ? ' urgent' : '');
+
+  document.getElementById('count-sun').textContent = gs.availMats.sun;
+  document.getElementById('count-water').textContent = gs.availMats.water;
+  document.getElementById('count-co2').textContent = gs.availMats.co2;
+  if (gs.decoyActive) document.getElementById('count-decoy').textContent = gs.availMats.decoy;
+
+  document.getElementById('fc-sun').textContent = gs.factory.sun;
+  document.getElementById('fc-water').textContent = gs.factory.water;
+  document.getElementById('fc-co2').textContent = gs.factory.co2;
+
+  document.getElementById('out-glucose').textContent = gs.glucoseProduced;
+  document.getElementById('out-oxygen').textContent = gs.glucoseProduced * 6;
+
+  document.getElementById('target-value').textContent = `${gs.target} 🍬`;
+  document.getElementById('target-progress').textContent = `${gs.glucoseProduced} / ${gs.target}`;
+
+  const prodPct = gs.production * 100;
+  document.getElementById('prod-bar').style.width = prodPct + '%';
+
+  const totalInFactory = gs.factory.sun + gs.factory.water + gs.factory.co2 + (gs.factory.decoy||0);
+  const capPct = Math.min(totalInFactory / (gs.capacity * 3) * 100, 100);
+  document.getElementById('cap-bar').style.width = capPct + '%';
+}
+
+function updateHearts() {
+  const el = document.getElementById('hearts-display');
+  el.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const h = document.createElement('span');
+    h.className = 'heart-icon' + (i >= gs.lives ? ' lost' : '');
+    h.textContent = '❤️';
+    el.appendChild(h);
+  }
+}
+
+function dropMaterial(type) {
+  if (!gs.running) return;
+  ensureAudio();
+
+  if (type === 'decoy') {
+    if (gs.availMats.decoy <= 0) return;
+    gs.availMats.decoy--;
+    gs.factory.decoy = (gs.factory.decoy||0) + 1;
+    sfxDecoy();
+    spawnParticles(document.getElementById('chloroplast'), '⚗️', '#b890e8', 3, false);
+    checkOverflow();
+    updateUI();
+    return;
+  }
+
+  if (gs.availMats[type] <= 0) return;
+  gs.availMats[type]--;
+  gs.factory[type]++;
+
+  // Play SFX
+  if (type === 'sun') sfxSunlight();
+  else if (type === 'water') sfxWater();
+  else if (type === 'co2') sfxCO2();
+
+  // Spawn particles
+  const chloro = document.getElementById('chloroplast');
+  if (type === 'sun') spawnParticles(chloro, '✨', '#f5c518', 5, true);
+  else if (type === 'water') spawnParticles(chloro, '💧', '#3b9fd6', 4, false);
+  else if (type === 'co2') spawnParticles(chloro, '🌬️', '#99aabb', 3, false);
+
+  // Check if we have a set of 6:6:6
+  checkProduction();
+  checkOverflow();
+  updateUI();
+}
+
+function checkProduction() {
+  const sun = gs.factory.sun;
+  const water = gs.factory.water;
+  const co2 = gs.factory.co2;
+  const minReady = Math.min(sun, water, co2);
+  // production bar = how close we are to NEXT glucose
+  const partial = Math.min(sun/1, water/6, co2/6);
+  gs.production = Math.min(partial, 1);
+
+  if (sun >= 1 && water >= 6 && co2 >= 6) {
+    // Produce glucose!
+    gs.factory.sun -= 1;
+    gs.factory.water -= 6;
+    gs.factory.co2 -= 6;
+    gs.glucoseProduced++;
+    gs.score += 100 + gs.round * 10;
+    gs.production = 0;
+    gs.timeLeft = Math.min(gs.timeLeft + 3, ROUND_TIME);
+    sfxGlucose();
+    sfxSuccess();
+
+    const chloro = document.getElementById('chloroplast');
+    chloro.classList.add('processing');
+    setTimeout(() => chloro.classList.remove('processing'), 650);
+    spawnParticles(chloro, '🍬', '#e8a02a', 8, false);
+
+    showNotif(`+1 Glucose! 🍬 +${100 + gs.round * 10}pts`, 'glucose');
+
+    if (gs.glucoseProduced >= gs.target) {
+      setTimeout(roundSuccess, 400);
+    }
+  }
+}
+
+function checkOverflow() {
+  const total = gs.factory.sun + gs.factory.water + gs.factory.co2 + (gs.factory.decoy||0);
+  const maxTotal = gs.capacity * 3;
+  if (total > maxTotal) {
+    gs.running = false;
+    clearInterval(gs.timerInterval);
+    sfxLifeLost();
+    gs.lives--;
+    updateHearts();
+    gs.factory = { sun:0, water:0, co2:0, decoy:0 };
+    gs.production = 0;
+    updateUI();
+    showNotif('⚠️ Factory Overloaded! -1 Life');
+    if (gs.lives <= 0) {
+      setTimeout(gameOver, 900);
+    } else {
+      setTimeout(() => {
+        gs.running = true;
+        clearInterval(gs.timerInterval);
+        gs.timerInterval = setInterval(gameTick, 1000);
+      }, 800);
+    }
+  }
+}
+
+function roundSuccess() {
+  gs.running = false;
+  clearInterval(gs.timerInterval);
+  gs.score += gs.timeLeft * 5;
+  gs.totalGlucose += gs.glucoseProduced;
+  sfxRoundTransition();
+
+  if (gs.round >= ROUNDS) {
+    setTimeout(victory, 600);
+  } else {
+    gs.round++;
+    showNotif(`✅ Done! +${gs.timeLeft * 5} time bonus`);
+    setTimeout(() => {
+      initRound();
+    }, 800);
+  }
+}
+
+function gameOver() {
+  stopMusic();
+  sfxGameOver();
+  gs.totalGlucose += gs.glucoseProduced;
+  document.getElementById('end-icon').textContent = '💀';
+  document.getElementById('end-title').textContent = 'Factory Shut Down!';
+  document.getElementById('end-subtitle').textContent = "The chloroplasts ran out of power...";
+  document.getElementById('stat-score').textContent = gs.score;
+  document.getElementById('stat-rounds').textContent = gs.round;
+  document.getElementById('stat-glucose').textContent = gs.totalGlucose;
+  setTimeout(() => showScreen('end-screen'), 400);
+}
+
+function victory() {
+  stopMusic();
+  sfxVictory();
+  gs.totalGlucose += gs.glucoseProduced;
+  document.getElementById('end-icon').textContent = '🏆';
+  document.getElementById('end-title').textContent = 'Factory Champion!';
+  document.getElementById('end-subtitle').textContent = "You mastered the photosynthesis process!";
+  document.getElementById('stat-score').textContent = gs.score;
+  document.getElementById('stat-rounds').textContent = ROUNDS;
+  document.getElementById('stat-glucose').textContent = gs.totalGlucose;
+  setTimeout(() => showScreen('end-screen'), 400);
+}
+
+/* ═══════════════════════════════════════════
+   DRAG & DROP (Mouse)
+═══════════════════════════════════════════ */
+let dragType = null;
+let dragGhost = document.getElementById('drag-ghost');
+let isDragging = false;
+
+const matColors = {
+  sun: '#7a5a00',
+  water: '#1a5a80',
+  co2: '#4a5560',
+  decoy: '#4a3060'
+};
+const matEmoji = { sun:'☀️', water:'💧', co2:'🧪', decoy:'⚗️' };
+
+function setDragGhost(type) {
+  dragGhost.style.background = matColors[type];
+  if (type === 'sun') {
+    dragGhost.innerHTML = '<img src="assets/sun.png" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" alt="sun"/>';
+  } else {
+    dragGhost.textContent = matEmoji[type];
+  }
+}
+
+function startDragMouse(e, type) {
+  if (!gs.running) return;
+  e.preventDefault();
+  ensureAudio();
+  dragType = type;
+  isDragging = true;
+  dragGhost.style.display = 'flex';
+  setDragGhost(type);
+  moveDragGhost(e.clientX, e.clientY);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function onMouseMove(e) {
+  if (!isDragging) return;
+  moveDragGhost(e.clientX, e.clientY);
+  const chloro = document.getElementById('chloroplast');
+  const rect = chloro.getBoundingClientRect();
+  const over = e.clientX >= rect.left && e.clientX <= rect.right &&
+               e.clientY >= rect.top && e.clientY <= rect.bottom;
+  chloro.classList.toggle('drop-hover', over);
+}
+
+function onMouseUp(e) {
+  if (!isDragging) return;
+  isDragging = false;
+  dragGhost.style.display = 'none';
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
+  const chloro = document.getElementById('chloroplast');
+  chloro.classList.remove('drop-hover');
+  const rect = chloro.getBoundingClientRect();
+  const hit = e.clientX >= rect.left && e.clientX <= rect.right &&
+              e.clientY >= rect.top && e.clientY <= rect.bottom;
+  if (hit && dragType) dropMaterial(dragType);
+  dragType = null;
+}
+
+function moveDragGhost(x, y) {
+  dragGhost.style.left = x + 'px';
+  dragGhost.style.top = y + 'px';
+}
+
+/* ═══════════════════════════════════════════
+   DRAG & DROP (Touch)
+═══════════════════════════════════════════ */
+function startDragTouch(e, type) {
+  if (!gs.running) return;
+  e.preventDefault();
+  ensureAudio();
+  dragType = type;
+  isDragging = true;
+  dragGhost.style.display = 'flex';
+  setDragGhost(type);
+  const t = e.touches[0];
+  moveDragGhost(t.clientX, t.clientY);
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+  document.addEventListener('touchcancel', onTouchEnd);
+}
+
+function onTouchMove(e) {
+  if (!isDragging) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  moveDragGhost(t.clientX, t.clientY);
+  const chloro = document.getElementById('chloroplast');
+  const rect = chloro.getBoundingClientRect();
+  const over = t.clientX >= rect.left && t.clientX <= rect.right &&
+               t.clientY >= rect.top && t.clientY <= rect.bottom;
+  chloro.classList.toggle('drop-hover', over);
+}
+
+function onTouchEnd(e) {
+  if (!isDragging) return;
+  isDragging = false;
+  dragGhost.style.display = 'none';
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend', onTouchEnd);
+  document.removeEventListener('touchcancel', onTouchEnd);
+  const chloro = document.getElementById('chloroplast');
+  chloro.classList.remove('drop-hover');
+  const t = e.changedTouches[0];
+  const rect = chloro.getBoundingClientRect();
+  const hit = t.clientX >= rect.left && t.clientX <= rect.right &&
+              t.clientY >= rect.top && t.clientY <= rect.bottom;
+  if (hit && dragType) dropMaterial(dragType);
+  dragType = null;
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  if (dragType) {
+    dropMaterial(dragType);
+    dragType = null;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD CONTROLS
+═══════════════════════════════════════════ */
+document.addEventListener('keydown', (e) => {
+  if (!gs.running) {
+    if (e.key === 'm' || e.key === 'M') toggleMute();
+    return;
+  }
+  switch(e.key) {
+    case '1': dropMaterial('sun'); break;
+    case '2': dropMaterial('water'); break;
+    case '3': dropMaterial('co2'); break;
+    case '4': manualProcess(); break;
+    case 'm': case 'M': toggleMute(); break;
+  }
+});
+
+function manualProcess() {
+  ensureAudio();
+  checkProduction();
+  sfxSuccess();
+  updateUI();
+}
+
+/* ═══════════════════════════════════════════
+   NOTIFICATIONS & PARTICLES
+═══════════════════════════════════════════ */
+function showNotif(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'round-notif';
+  if (type === 'glucose') el.style.background = 'rgba(232,160,42,0.92)';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+}
+
+function spawnParticles(anchorEl, emoji, color, count, useSunImg) {
+  const rect = anchorEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const angle = (Math.random() * Math.PI * 2);
+    const dist = 40 + Math.random() * 60;
+    p.style.setProperty('--px', `${Math.cos(angle)*dist}px`);
+    p.style.setProperty('--py', `${Math.sin(angle)*dist}px`);
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    p.style.animationDelay = (Math.random() * 0.15) + 's';
+    if (useSunImg) {
+      p.innerHTML = '<img src="assets/sun.png" style="width:22px;height:22px;object-fit:contain;" alt=""/>';
+      p.style.fontSize = '0';
+    } else {
+      p.textContent = emoji;
+    }
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1100);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+// Initial hearts
+function resetHearts() {
+  const el = document.getElementById('hearts-display');
+  if (!el) return;
+  el.innerHTML = '<span class="heart-icon">❤️</span><span class="heart-icon">❤️</span><span class="heart-icon">❤️</span>';
+}
+
+showScreen('start-screen');
+</script>
+</body>
+</html>
